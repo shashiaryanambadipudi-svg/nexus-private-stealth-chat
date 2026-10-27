@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="appDocumentTitle">Nexus Private Stealth Chat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                        },
+                        accent: {
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                        },
+                        dark: {
+                            900: '#090d16',
+                            800: '#0f172a',
+                            700: '#1e293b',
+                            600: '#334155',
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bomb-tick': 'bombTick 1s linear infinite',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%, 100%': { opacity: 1, boxShadow: '0 0 15px rgba(16, 185, 129, 0.4)' },
+                            '50%': { opacity: 0.5, boxShadow: '0 0 5px rgba(16, 185, 129, 0.1)' },
+                        },
+                        bombTick: {
+                            '0%, 100%': { transform: 'scale(1)' },
+                            '50%': { transform: 'scale(1.15)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #090d16;
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(16, 185, 129, 0.12) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.8) 0px, transparent 100%);
+            background-attachment: fixed;
+            color: #f8fafc;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 9999px;
+        }
+
+        .wave-bar {
+            width: 3px;
+            height: 12px;
+            background-color: #34d399;
+            border-radius: 3px;
+            animation: wave 1.2s ease-in-out infinite;
+        }
+        .wave-bar:nth-child(2) { animation-delay: 0.2s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.4s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.1s; }
+        .wave-bar:nth-child(5) { animation-delay: 0.3s; }
+
+        @keyframes wave {
+            0%, 100% { height: 6px; }
+            50% { height: 20px; }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col justify-between antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- REALTIME FLOATING TOAST CONTAINERS -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3 pointer-events-none max-w-sm w-full"></div>
+
+    <!-- ADMIN REALTIME JOIN REQUEST NOTIFICATION CARD -->
+    <div id="adminJoinPromptCard" class="hidden fixed top-5 left-1/2 -translate-x-1/2 z-50 max-w-md w-full px-4 pointer-events-auto">
+        <div class="glass-card border-2 border-brand-500/50 p-4 rounded-3xl shadow-2xl flex items-center justify-between gap-3 animate-bounce">
+            <div class="flex items-center gap-3">
+                <img id="joinReqAvatar" src="" class="w-10 h-10 rounded-2xl border border-white/20 object-cover">
+                <div>
+                    <h4 class="text-xs font-bold text-white flex items-center gap-1">
+                        <i class="fa-solid fa-user-plus text-brand-400"></i> Join Request
+                    </h4>
+                    <p class="text-[11px] text-gray-300" id="joinReqName">Someone wants to enter</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="denyJoinRequest()" class="px-3 py-1.5 rounded-xl bg-rose-500/25 hover:bg-rose-500/40 text-rose-300 text-xs font-semibold transition">Deny</button>
+                <button onclick="approveJoinRequest()" class="px-3.5 py-1.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold shadow transition">Approve</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. PASSCODE / VAULT PIN LOCK SCREEN -->
+    <div id="lockScreen" class="fixed inset-0 z-40 bg-[#090d16]/95 backdrop-blur-2xl flex items-center justify-center p-4">
+        <div class="glass-card max-w-sm w-full p-8 rounded-3xl shadow-2xl border border-white/10 text-center flex flex-col items-center relative overflow-hidden">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-500 to-accent-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-brand-500/30 mb-4">
+                <i class="fa-solid fa-vault"></i>
+            </div>
+
+            <h1 class="text-2xl font-bold text-white tracking-tight mb-1">Nexus Stealth Vault</h1>
+            <p class="text-xs text-gray-400 mb-6">Enter key passcode to decrypt room feed.</p>
+
+            <div class="flex gap-4 mb-6" id="pinDotsContainer">
+                <div class="pin-dot w-4 h-4 rounded-full border-2 border-white/20 transition-all"></div>
+                <div class="pin-dot w-4 h-4 rounded-full border-2 border-white/20 transition-all"></div>
+                <div class="pin-dot w-4 h-4 rounded-full border-2 border-white/20 transition-all"></div>
+                <div class="pin-dot w-4 h-4 rounded-full border-2 border-white/20 transition-all"></div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 w-full max-w-[220px]">
+                <button onclick="appendPin('1')" class="h-12 rounded-xl glass-panel text-lg font-semibold hover:bg-white/10 active:scale-95 transition">1</button>
+                <button onclick="appendPin('2')" class="h-12 rounded-xl glass-panel text-lg font-semibold hover:bg-white/10 active:scale-95 transition">2</button>
+                <button onclick="appendPin('3')" class="h-12 rounded-xl glass-panel text-lg font-semibold hover:bg-white/10 active:scale-95 transition">3</button>
+                <button onclick="appendPin('4')" class="h-12 rounded-xl glass-panel text-lg font-semibold hover:bg-white/10 active:scale-95 transition">4</button>
+                <button onclick="appendPin('5')" class="h-12 rounded-xl glass-panel text-lg font-semibold hover:bg-white/10 active:scale-95 transition">5</button>
+                <button onclick="appendPin('6')" class="h-12 rounded-xl glass-panel text-lg font-semibold hover:bg-white/10 active:scale-95 transition">6</button>
+                <button onclick="appendPin('7')" class="h-12 rounded-xl glass-panel text-lg font-semibold hover:bg-white/10 active:scale-95 transition">7</button>
+                <button onclick="appendPin('8')" class="h-12 rounded-xl glass-panel text-lg font-semibold hover:bg-white/10 active:scale-95 transition">8</button>
+                <button onclick="appendPin('9')" class="h-12 rounded-xl glass-panel text-lg font-semibold hover:bg-white/10 active:scale-95 transition">9</button>
+                <button onclick="clearPin()" class="h-12 rounded-xl glass-panel text-xs font-medium text-rose-400 hover:bg-rose-500/10 active:scale-95 transition">Clear</button>
+                <button onclick="appendPin('0')" class="h-12 rounded-xl glass-panel text-lg font-semibold hover:bg-white/10 active:scale-95 transition">0</button>
+                <button onclick="verifyPin()" class="h-12 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold shadow-md shadow-brand-500/20 active:scale-95 transition"><i class="fa-solid fa-key"></i></button>
+            </div>
+
+            <p id="pinHint" class="text-[11px] text-gray-500 mt-6 font-mono">Default Passcode: 1234</p>
+        </div>
+    </div>
+
+    <!-- 2. USER SETUP & JOIN REQUEST MODAL -->
+    <div id="profileModal" class="hidden fixed inset-0 z-40 bg-[#090d16]/90 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="glass-card max-w-sm w-full p-6 rounded-3xl border border-white/10 shadow-2xl">
+            <h2 class="text-xl font-bold text-white mb-1">Set Profile Credentials</h2>
+            <p class="text-xs text-gray-400 mb-5">Identify yourself to group members.</p>
+            
+            <div class="mb-4 text-center">
+                <div class="relative w-20 h-20 mx-auto mb-3">
+                    <img id="avatarSetupPreview" src="https://api.dicebear.com/7.x/bottts/svg?seed=Alex" class="w-20 h-20 rounded-2xl object-cover border-2 border-brand-500 shadow-md">
+                    <button type="button" onclick="triggerAvatarUpload()" class="absolute -bottom-1 -right-1 w-7 h-7 bg-brand-500 rounded-full text-white text-xs flex items-center justify-center shadow">
+                        <i class="fa-solid fa-camera"></i>
+                    </button>
+                    <input type="file" id="avatarFileInput" accept="image/*" class="hidden" onchange="handleAvatarFileSelect(event)">
+                </div>
+                <p class="text-[10px] text-gray-400">Click camera icon to upload custom photo</p>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Display Name</label>
+                <input type="text" id="usernameInput" value="Alex" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-500 text-sm">
+            </div>
+
+            <button onclick="submitJoinRequest()" class="w-full bg-gradient-to-r from-brand-500 to-accent-500 hover:opacity-90 text-white font-semibold py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+                <span>Request Entry</span>
+                <i class="fa-solid fa-shield-halved text-xs"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 3. WAITING FOR ADMIN APPROVAL LOBBY SCREEN -->
+    <div id="waitingLobbyModal" class="hidden fixed inset-0 z-40 bg-[#090d16]/95 backdrop-blur-2xl flex items-center justify-center p-4">
+        <div class="glass-card max-w-sm w-full p-8 rounded-3xl border border-white/10 text-center flex flex-col items-center shadow-2xl">
+            <div class="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-2xl mb-4 animate-pulse">
+                <i class="fa-solid fa-user-clock"></i>
+            </div>
+            <h2 class="text-xl font-bold text-white mb-2">Admin Gatekeeper</h2>
+            <p class="text-xs text-gray-400 mb-6 leading-relaxed">Join request sent to active room admins. You will enter automatically when approved.</p>
+            
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs text-amber-300 font-mono">
+                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                Waiting for host confirmation...
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. PROFILE EDITING MODAL (Post-Approval) -->
+    <div id="editProfileModal" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card max-w-sm w-full p-6 rounded-3xl border border-white/10 shadow-2xl">
+            <div class="flex justify-between items-center mb-5 pb-3 border-b border-white/10">
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-user-pen text-brand-400"></i> Edit Profile & Avatar
+                </h2>
+                <button onclick="closeEditProfile()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="text-center mb-5">
+                <div class="relative w-24 h-24 mx-auto mb-3">
+                    <img id="editAvatarPreview" src="" class="w-24 h-24 rounded-2xl object-cover border-2 border-brand-500 shadow-md">
+                    <button onclick="triggerAvatarUploadEdit()" class="absolute -bottom-1 -right-1 w-8 h-8 bg-brand-500 rounded-full text-white text-xs flex items-center justify-center shadow hover:bg-brand-600 transition">
+                        <i class="fa-solid fa-camera"></i>
+                    </button>
+                    <input type="file" id="avatarFileInputEdit" accept="image/*" class="hidden" onchange="handleAvatarEditFileSelect(event)">
+                </div>
+                <p class="text-[11px] text-gray-400">Upload custom gallery photo</p>
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Display Nickname</label>
+                <input type="text" id="editUsernameInput" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-500 text-sm">
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="closeEditProfile()" class="flex-1 bg-white/5 hover:bg-white/10 text-gray-300 font-semibold py-2.5 rounded-xl text-xs">Cancel</button>
+                <button onclick="saveProfileChanges()" class="flex-1 bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-xl shadow text-xs">Save Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. GROUP ROOM SETTINGS MODAL (Custom Group Pic & Room Name) -->
+    <div id="groupSettingsModal" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card max-w-sm w-full p-6 rounded-3xl border border-white/10 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-white/10">
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-people-roof text-brand-400"></i> Group Room Settings
+                </h2>
+                <button onclick="closeGroupSettings()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="text-center mb-5">
+                <div class="relative w-20 h-20 mx-auto mb-3">
+                    <img id="groupPicPreview" src="https://api.dicebear.com/7.x/identicon/svg?seed=squad-vault" class="w-20 h-20 rounded-2xl object-cover border-2 border-brand-500 shadow-md">
+                    <button onclick="triggerGroupPicUpload()" class="absolute -bottom-1 -right-1 w-7 h-7 bg-brand-500 rounded-full text-white text-xs flex items-center justify-center shadow">
+                        <i class="fa-solid fa-camera"></i>
+                    </button>
+                    <input type="file" id="groupPicFileInput" accept="image/*" class="hidden" onchange="handleGroupPicFileSelect(event)">
+                </div>
+                <p class="text-[10px] text-gray-400">Upload group profile picture from gallery</p>
+            </div>
+
+            <div class="mb-5">
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Group Room Name</label>
+                <input type="text" id="groupRoomNameInput" value="#squad-vault" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-brand-500 text-sm">
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="closeGroupSettings()" class="flex-1 bg-white/5 hover:bg-white/10 text-gray-300 font-semibold py-2.5 rounded-xl text-xs">Cancel</button>
+                <button onclick="saveGroupSettings()" class="flex-1 bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-xl shadow text-xs">Save Room</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. DISAPPEARING MESSAGES SETTINGS MODAL -->
+    <div id="disappearingModal" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card max-w-sm w-full p-6 rounded-3xl border border-white/10 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-white/10">
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-hourglass-half text-amber-400"></i> Disappearing Messages
+                </h2>
+                <button onclick="closeDisappearingSettings()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <p class="text-xs text-gray-400 mb-5 leading-relaxed">Choose auto-deletion timer for new messages sent in this room.</p>
+
+            <div class="space-y-2 mb-6">
+                <button onclick="setDisappearingTimer(0)" id="timerOpt_0" class="w-full p-3 rounded-2xl glass-panel text-left flex items-center justify-between hover:bg-white/10 text-xs font-medium transition">
+                    <span class="text-gray-200">Off (Keep messages)</span>
+                    <i class="fa-solid fa-check text-brand-400 opacity-0 check-icon"></i>
+                </button>
+                <button onclick="setDisappearingTimer(1)" id="timerOpt_1" class="w-full p-3 rounded-2xl glass-panel text-left flex items-center justify-between hover:bg-white/10 text-xs font-medium transition">
+                    <span class="text-gray-200">Immediately (After viewing)</span>
+                    <i class="fa-solid fa-check text-brand-400 opacity-0 check-icon"></i>
+                </button>
+                <button onclick="setDisappearingTimer(43200)" id="timerOpt_43200" class="w-full p-3 rounded-2xl glass-panel text-left flex items-center justify-between hover:bg-white/10 text-xs font-medium transition">
+                    <span class="text-gray-200">12 Hours</span>
+                    <i class="fa-solid fa-check text-brand-400 opacity-0 check-icon"></i>
+                </button>
+                <button onclick="setDisappearingTimer(86400)" id="timerOpt_86400" class="w-full p-3 rounded-2xl glass-panel text-left flex items-center justify-between hover:bg-white/10 text-xs font-medium transition">
+                    <span class="text-gray-200">24 Hours</span>
+                    <i class="fa-solid fa-check text-brand-400 opacity-0 check-icon"></i>
+                </button>
+            </div>
+
+            <button onclick="closeDisappearingSettings()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-xl text-xs transition">
+                Apply Timer
+            </button>
+        </div>
+    </div>
+
+    <!-- 7. VIEW ONCE / TIME BOMB PHOTO VIEWER MODAL -->
+    <div id="viewOnceModal" class="hidden fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-between p-6">
+        <div class="w-full max-w-md flex justify-between items-center text-white">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center animate-bomb-tick">
+                    <i class="fa-solid fa-bomb"></i>
+                </div>
+                <div>
+                    <span class="text-xs font-bold text-white block">View-Once Time Bomb Photo</span>
+                    <span class="text-[10px] text-rose-400 font-mono" id="viewOnceCountdown">Self-destructs in 10s</span>
+                </div>
+            </div>
+            <button onclick="closeViewOncePhoto()" class="px-3 py-1.5 rounded-xl bg-white/10 text-xs text-gray-300 hover:bg-white/20">Close & Burn</button>
+        </div>
+
+        <div class="relative flex-1 flex items-center justify-center my-4 max-w-full">
+            <img id="viewOnceImgDisplay" src="" class="max-w-full max-h-[75vh] rounded-2xl object-contain shadow-2xl border border-white/10">
+        </div>
+
+        <p class="text-[11px] text-gray-500 font-mono text-center">Closing this viewer will permanently destroy this photo for everyone.</p>
+    </div>
+
+    <!-- 8. PIN & SECURITY SETTINGS MODAL -->
+    <div id="settingsModal" class="hidden fixed inset-0 z-40 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card max-w-sm w-full p-6 rounded-3xl border border-white/10 shadow-2xl">
+            <div class="flex justify-between items-center mb-5 pb-3 border-b border-white/10">
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-key text-brand-400"></i> Change Vault Key
+                </h2>
+                <button onclick="closeSettings()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Current Passcode</label>
+                    <input type="password" id="currentPinInput" maxlength="4" placeholder="••••" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-center tracking-widest text-base focus:outline-none focus:border-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">New Passcode</label>
+                    <input type="password" id="newPinInput" maxlength="4" placeholder="••••" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-center tracking-widest text-base focus:outline-none focus:border-brand-500">
+                </div>
+            </div>
+
+            <div class="mt-6 flex gap-2">
+                <button onclick="closeSettings()" class="flex-1 bg-white/5 hover:bg-white/10 text-gray-300 font-semibold py-2.5 rounded-xl transition text-xs">Cancel</button>
+                <button onclick="updateRoomPin()" class="flex-1 bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-xl shadow transition text-xs">Save Passcode</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9. MAIN LAYOUT WITH SIDEBAR & CHAT BODY -->
+    <div class="h-screen flex flex-col max-w-7xl mx-auto w-full p-2 sm:p-4">
+        
+        <!-- HEADER / TOP NAV BAR -->
+        <header class="glass-panel rounded-2xl p-3 sm:px-5 mb-3 flex items-center justify-between shadow-xl">
+            <div class="flex items-center gap-3">
+                <!-- Group or User Avatar Button -->
+                <button onclick="openGroupSettings()" class="relative group" title="Edit Group Room Settings">
+                    <img id="headerGroupAvatar" src="https://api.dicebear.com/7.x/identicon/svg?seed=squad-vault" class="w-10 h-10 rounded-xl object-cover border-2 border-brand-500 shadow-md transition transform group-hover:scale-105">
+                    <span class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#090d16] rounded-full"></span>
+                </button>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-white text-base tracking-tight" id="activeChatTitle">Group Vault: #squad-vault</h1>
+                        <span id="disappearingBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                            <i class="fa-solid fa-hourglass-half"></i> <span id="disappearingBadgeText">12h</span>
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 flex items-center gap-2">
+                        <span id="activeUserCount">3 Members Online</span>
+                        <span>•</span>
+                        <button onclick="openDisappearingSettings()" class="text-brand-400 hover:underline flex items-center gap-1">
+                            <i class="fa-solid fa-clock"></i> Auto-Delete Settings
+                        </button>
+                        <span>•</span>
+                        <span class="text-emerald-400 text-[10px] font-mono flex items-center gap-1" title="Zero IP / Location Tracking active">
+                            <i class="fa-solid fa-user-secret"></i> Zero Tracking
+                        </span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Header Utility Buttons -->
+            <div class="flex items-center gap-2">
+                <button onclick="toggleSidebar()" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-xs flex items-center gap-1.5 transition" title="Toggle Private DMs">
+                    <i class="fa-solid fa-users text-brand-400"></i>
+                    <span class="hidden sm:inline font-medium">Members & DMs</span>
+                </button>
+                <button onclick="openStealthDisguiseModal()" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-xs transition" title="App Icon & Name Disguise">
+                    <i class="fa-solid fa-masks-theater text-amber-400"></i>
+                </button>
+                <button onclick="openNotificationSettings()" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-xs transition" title="Notification Settings">
+                    <i class="fa-solid fa-bell text-sky-400"></i>
+                </button>
+                <button onclick="openSettings()" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-xs transition" title="Security Passcode Settings">
+                    <i class="fa-solid fa-gear text-accent-400"></i>
+                </button>
+                <button onclick="copyRoomLink()" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white text-xs transition" title="Copy Invite Link">
+                    <i class="fa-solid fa-link text-emerald-400"></i>
+                </button>
+                <button onclick="simulateIntruderThreat()" class="p-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs transition" title="Test Auto-Destruct Protection">
+                    <i class="fa-solid fa-shield-virus"></i>
+                </button>
+                <button onclick="lockApp()" class="p-2.5 rounded-xl bg-white/5 hover:bg-rose-500/20 text-gray-300 hover:text-rose-400 text-xs transition" title="Lock App">
+                    <i class="fa-solid fa-lock text-amber-400"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- DISCORD-STYLE CALL CONTROL BAR -->
+        <div id="voiceCallBar" class="hidden glass-panel border border-brand-500/30 rounded-2xl p-3 mb-3 flex items-center justify-between shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="relative flex items-center justify-center">
+                    <span class="absolute w-8 h-8 bg-emerald-500/20 rounded-full animate-ping"></span>
+                    <div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 text-xs">
+                        <i class="fa-solid fa-phone"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-white" id="callTypeTitle">Encrypted Group Call</span>
+                        <span class="text-[10px] font-mono bg-white/10 px-1.5 py-0.5 rounded text-emerald-400">Live Peer Audio</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400" id="callStatusText">Audio hardware linked • Studio bitrate</p>
+                </div>
+            </div>
+
+            <!-- Call Hardware Controls (Mute Mic / Deafen Audio / End Call) -->
+            <div class="flex items-center gap-2">
+                <button onclick="toggleMuteMic()" id="micBtn" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-microphone" id="micIcon"></i>
+                    <span class="hidden sm:inline" id="micLabel">Mic On</span>
+                </button>
+                <button onclick="toggleDeafenAudio()" id="deafenBtn" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-headphones" id="deafenIcon"></i>
+                    <span class="hidden sm:inline" id="deafenLabel">Deafen Off</span>
+                </button>
+                <button onclick="endVoiceCall()" class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition flex items-center gap-1.5 shadow">
+                    <i class="fa-solid fa-phone-slash"></i> End Call
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN BODY SECTION: SIDEBAR + CHAT STREAM -->
+        <div class="flex-1 flex gap-3 overflow-hidden">
+            
+            <!-- SIDEBAR: MEMBERS & PRIVATE DM SESSIONS -->
+            <aside id="memberSidebar" class="hidden sm:flex flex-col w-64 glass-panel rounded-3xl p-4 shadow-2xl transition-all">
+                <div class="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-shield text-brand-400"></i> Room Members
+                    </h2>
+                    <button onclick="switchChatTarget('group')" class="text-[10px] font-semibold text-brand-400 hover:underline">Group Main</button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto space-y-2 mb-3" id="memberListContainer">
+                    <!-- Dynamic Member Rows -->
+                </div>
+
+                <!-- ZERO TRACKING PRIVACY NOTICE CARD -->
+                <div class="p-3 rounded-2xl bg-white/5 border border-white/10 text-[10px] text-gray-400 space-y-1">
+                    <div class="flex items-center gap-1 text-emerald-400 font-bold">
+                        <i class="fa-solid fa-shield-halved"></i> Zero Tracking Guard
+                    </div>
+                    <p class="leading-tight">IP logging disabled. GPS coordinates scrubbed. WebRTC anonymized.</p>
+                </div>
+            </aside>
+
+            <!-- CHAT AREA -->
+            <main class="flex-1 glass-panel rounded-3xl p-3 sm:p-5 flex flex-col justify-between overflow-hidden relative shadow-2xl">
+                
+                <!-- MESSAGES STREAM CONTAINER -->
+                <div id="messageStream" class="flex-1 overflow-y-auto space-y-4 pr-1 mb-3">
+                    <!-- Dynamic Messages -->
+                </div>
+
+                <!-- TAGGING MENTIONS POPUP DRAWER -->
+                <div id="tagMentionsMenu" class="hidden absolute bottom-16 left-4 z-30 glass-card border border-white/10 rounded-2xl p-2 shadow-2xl w-60 max-h-48 overflow-y-auto space-y-1">
+                    <button onclick="insertTag('@all')" class="w-full text-left p-2 hover:bg-white/10 rounded-xl text-xs font-bold text-amber-400 flex items-center gap-2">
+                        <i class="fa-solid fa-bullhorn text-xs"></i> @all (Notify entire group)
+                    </button>
+                    <div id="tagMemberList" class="border-t border-white/10 pt-1 space-y-1">
+                        <!-- Dynamic member mention list -->
+                    </div>
+                </div>
+
+                <!-- AUDIO RECORDING ACTIVE BAR -->
+                <div id="recordingBar" class="hidden bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3 mb-3 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span>
+                        <span class="text-xs font-bold text-white font-mono" id="recordTimer">00:00</span>
+                        <div class="flex items-center gap-1 px-2">
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                            <div class="wave-bar"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="cancelVoiceRecording()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-gray-300">Cancel</button>
+                        <button onclick="stopAndSendVoiceRecording()" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white shadow flex items-center gap-1">
+                            <i class="fa-solid fa-paper-plane text-[10px]"></i> Send Voice Note
+                        </button>
+                    </div>
+                </div>
+
+                <!-- EMOJI PICKER DRAWER -->
+                <div id="emojiPicker" class="hidden absolute bottom-20 left-4 z-20 glass-card border border-white/10 rounded-2xl p-3 shadow-2xl w-64 grid grid-cols-6 gap-2">
+                    <button onclick="addEmoji('👍')" class="p-2 hover:bg-white/10 rounded-xl text-lg">👍</button>
+                    <button onclick="addEmoji('❤️')" class="p-2 hover:bg-white/10 rounded-xl text-lg">❤️</button>
+                    <button onclick="addEmoji('🔥')" class="p-2 hover:bg-white/10 rounded-xl text-lg">🔥</button>
+                    <button onclick="addEmoji('😂')" class="p-2 hover:bg-white/10 rounded-xl text-lg">😂</button>
+                    <button onclick="addEmoji('😎')" class="p-2 hover:bg-white/10 rounded-xl text-lg">😎</button>
+                    <button onclick="addEmoji('🎉')" class="p-2 hover:bg-white/10 rounded-xl text-lg">🎉</button>
+                    <button onclick="addEmoji('🔒')" class="p-2 hover:bg-white/10 rounded-xl text-lg">🔒</button>
+                    <button onclick="addEmoji('👀')" class="p-2 hover:bg-white/10 rounded-xl text-lg">👀</button>
+                    <button onclick="addEmoji('🚀')" class="p-2 hover:bg-white/10 rounded-xl text-lg">🚀</button>
+                    <button onclick="addEmoji('💯')" class="p-2 hover:bg-white/10 rounded-xl text-lg">💯</button>
+                    <button onclick="addEmoji('✨')" class="p-2 hover:bg-white/10 rounded-xl text-lg">✨</button>
+                    <button onclick="addEmoji('💣')" class="p-2 hover:bg-white/10 rounded-xl text-lg">💣</button>
+                </div>
+
+                <!-- SEARCHABLE GIF PICKER DRAWER -->
+                <div id="gifPicker" class="hidden absolute bottom-20 left-4 sm:left-12 z-30 glass-card border border-white/10 rounded-2xl p-3 shadow-2xl w-80 sm:w-96 max-h-96 flex flex-col">
+                    <div class="flex justify-between items-center mb-2 pb-2 border-b border-white/10">
+                        <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-bolt text-amber-400"></i> Searchable GIF Engine
+                        </span>
+                        <button onclick="toggleGifPicker()" class="text-gray-400 hover:text-white text-xs"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+
+                    <!-- SEARCH BAR -->
+                    <div class="relative mb-2">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-xs"></i>
+                        <input type="text" id="gifSearchInput" placeholder="Search GIFs..." oninput="handleGifSearchInput(event)" class="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500">
+                        <button onclick="clearGifSearch()" id="clearGifSearchBtn" class="hidden absolute right-3 top-2.5 text-gray-400 hover:text-white text-xs"><i class="fa-solid fa-circle-xmark"></i></button>
+                    </div>
+
+                    <!-- QUICK CATEGORY SEARCH PILLS -->
+                    <div class="flex gap-1.5 overflow-x-auto pb-2 mb-2 text-[10px] font-semibold scrollbar-none">
+                        <button onclick="searchGifTag('Trending')" class="px-2.5 py-1 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30 whitespace-nowrap">🔥 Trending</button>
+                        <button onclick="searchGifTag('Clap')" class="px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 whitespace-nowrap">👏 Clap</button>
+                        <button onclick="searchGifTag('Dance')" class="px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 whitespace-nowrap">💃 Dance</button>
+                        <button onclick="searchGifTag('Laugh')" class="px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 whitespace-nowrap">😂 Laugh</button>
+                        <button onclick="searchGifTag('Anime')" class="px-2.5 py-1 rounded-full bg-white/5 text-gray-300 border border-white/10 whitespace-nowrap">✨ Anime</button>
+                    </div>
+
+                    <!-- GIF RESULTS GRID -->
+                    <div class="flex-1 overflow-y-auto grid grid-cols-2 gap-2" id="gifGrid">
+                        <!-- Populated by JS Search Engine -->
+                    </div>
+                </div>
+
+                <!-- ATTACHMENT / TIME-BOMB IMAGE MODAL -->
+                <div id="attachmentModal" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+                    <div class="glass-card max-w-sm w-full p-5 rounded-3xl border border-white/10 shadow-2xl text-center">
+                        <h3 class="text-base font-bold text-white mb-3">Photo Send Options</h3>
+                        
+                        <div class="mb-4">
+                            <img id="uploadPreviewImg" src="" class="max-h-44 mx-auto rounded-xl object-contain border border-white/10">
+                        </div>
+
+                        <div class="p-3 rounded-2xl bg-white/5 border border-white/10 mb-4 flex items-center justify-between text-xs">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-bomb text-rose-400 text-sm"></i>
+                                <div class="text-left">
+                                    <span class="font-bold text-white block">View Once (Time Bomb)</span>
+                                    <span class="text-[10px] text-gray-400">Self-destructs immediately after viewing</span>
+                                </div>
+                            </div>
+                            <input type="checkbox" id="viewOnceToggle" class="w-4 h-4 accent-rose-500 rounded cursor-pointer">
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button onclick="cancelPhotoSend()" class="flex-1 bg-white/5 hover:bg-white/10 text-gray-300 font-semibold py-2.5 rounded-xl text-xs">Cancel</button>
+                            <button onclick="confirmPhotoSend()" class="flex-1 bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-xl text-xs shadow">Send Photo</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INPUT FORM BAR -->
+                <form onsubmit="handleSendMessage(event)" class="relative flex items-center gap-1.5 sm:gap-2">
+                    
+                    <!-- File Input / Attachment -->
+                    <button type="button" onclick="triggerFileInput()" class="p-2.5 sm:p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition" title="Attach Photo">
+                        <i class="fa-solid fa-paperclip text-sm"></i>
+                    </button>
+                    <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleImageSelected(event)">
+
+                    <!-- Tag Button -->
+                    <button type="button" onclick="toggleTagMenu()" class="p-2.5 sm:p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-amber-400 hover:text-amber-300 transition font-bold text-xs" title="Tag Member">
+                        @
+                    </button>
+
+                    <!-- GIF Picker -->
+                    <button type="button" onclick="toggleGifPicker()" class="p-2.5 sm:p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition font-bold text-xs" title="Send GIF">
+                        GIF
+                    </button>
+
+                    <!-- Voice Recorder -->
+                    <button type="button" onclick="startVoiceRecording()" class="p-2.5 sm:p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition" title="Voice Note">
+                        <i class="fa-solid fa-microphone text-sm"></i>
+                    </button>
+
+                    <!-- Emoji Picker -->
+                    <button type="button" onclick="toggleEmojiPicker()" class="p-2.5 sm:p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition" title="Emoji">
+                        <i class="fa-solid fa-face-smile text-sm"></i>
+                    </button>
+
+                    <!-- Call Launch Button -->
+                    <button type="button" id="startCallBtn" onclick="startVoiceCall()" class="p-2.5 sm:p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition flex items-center gap-1 text-xs font-semibold">
+                        <i class="fa-solid fa-phone"></i>
+                        <span class="hidden md:inline">Call</span>
+                    </button>
+
+                    <!-- Message Text Input -->
+                    <input type="text" id="chatInput" placeholder="Message encrypted room... (use @ to tag)" class="flex-1 bg-white/5 border border-white/10 rounded-2xl px-3.5 py-2.5 sm:py-3 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-brand-500 transition">
+
+                    <!-- Send Button -->
+                    <button type="submit" class="p-2.5 sm:p-3 rounded-2xl bg-brand-500 hover:bg-brand-600 text-white font-semibold shadow-lg shadow-brand-500/25 transition">
+                        <i class="fa-solid fa-paper-plane text-sm"></i>
+                    </button>
+                </form>
+            </main>
+        </div>
+    </div>
+
+    <!-- 10. APP ICON & NAME STEALTH DISGUISE MODAL -->
+    <div id="disguiseModal" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card max-w-sm w-full p-6 rounded-3xl border border-white/10 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-white/10">
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-masks-theater text-amber-400"></i> App Icon & Name Disguise
+                </h2>
+                <button onclick="closeStealthDisguiseModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs text-gray-400 mb-4">Change the browser tab title, upload custom app icon from gallery, or leave the name completely blank for ultimate stealth.</p>
+            
+            <div class="mb-4">
+                <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Custom App Name (Leave empty to have NO name)</label>
+                <input type="text" id="customAppNameInput" placeholder="e.g. Calculator Pro or leave blank" class="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-xs focus:outline-none focus:border-brand-500">
+            </div>
+
+            <div class="mb-5 text-center">
+                <div class="relative w-20 h-20 mx-auto mb-2">
+                    <img id="customAppIconPreview" src="https://placehold.co/80x80/10b981/ffffff?text=App" class="w-20 h-20 rounded-2xl object-cover border-2 border-brand-500 shadow-md">
+                    <button type="button" onclick="triggerAppIconUpload()" class="absolute -bottom-1 -right-1 w-7 h-7 bg-brand-500 rounded-full text-white text-xs flex items-center justify-center shadow">
+                        <i class="fa-solid fa-camera"></i>
+                    </button>
+                    <input type="file" id="appIconFileInput" accept="image/*" class="hidden" onchange="handleAppIconFileSelect(event)">
+                </div>
+                <p class="text-[10px] text-gray-400">Upload custom app icon from gallery</p>
+            </div>
+
+            <div class="space-y-2 mb-5">
+                <button onclick="setDisguisePreset('Calculator Pro', 'https://placehold.co/80x80/f59e0b/ffffff?text=Calc')" class="w-full p-2.5 rounded-xl glass-panel text-left flex items-center justify-between hover:bg-white/10 text-xs">
+                    <span class="text-gray-200"><i class="fa-solid fa-calculator text-amber-400"></i> Preset: Calculator</span>
+                </button>
+                <button onclick="setDisguisePreset('World Clock', 'https://placehold.co/80x80/38bdf8/ffffff?text=Clock')" class="w-full p-2.5 rounded-xl glass-panel text-left flex items-center justify-between hover:bg-white/10 text-xs">
+                    <span class="text-gray-200"><i class="fa-solid fa-clock text-sky-400"></i> Preset: World Clock</span>
+                </button>
+                <button onclick="setDisguisePreset('', 'https://placehold.co/80x80/0f172a/ffffff?text=Blank')" class="w-full p-2.5 rounded-xl glass-panel text-left flex items-center justify-between hover:bg-white/10 text-xs text-rose-400">
+                    <span><i class="fa-solid fa-eye-slash"></i> Preset: Blank Name & Icon</span>
+                </button>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="resetDisguise()" class="flex-1 bg-white/10 hover:bg-white/20 text-gray-300 font-semibold py-2.5 rounded-xl text-xs">Reset Default</button>
+                <button onclick="applyAppDisguise()" class="flex-1 bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-xl text-xs shadow">Apply Disguise</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 11. NOTIFICATION CONTROLS MODAL -->
+    <div id="notificationModal" class="hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card max-w-sm w-full p-6 rounded-3xl border border-white/10 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-white/10">
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-bell text-sky-400"></i> Notification Settings
+                </h2>
+                <button onclick="closeNotificationSettings()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="space-y-3 mb-6">
+                <div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 text-xs">
+                    <div>
+                        <span class="font-bold text-white block">In-App Audio Sounds</span>
+                        <span class="text-[10px] text-gray-400">Play chime for incoming messages</span>
+                    </div>
+                    <input type="checkbox" id="toggleSoundNotifications" checked class="w-4 h-4 accent-brand-500 cursor-pointer">
+                </div>
+                <div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 text-xs">
+                    <div>
+                        <span class="font-bold text-white block">Popup Toast Banners</span>
+                        <span class="text-[10px] text-gray-400">Show notification popups</span>
+                    </div>
+                    <input type="checkbox" id="toggleToastNotifications" checked class="w-4 h-4 accent-brand-500 cursor-pointer">
+                </div>
+            </div>
+
+            <button onclick="saveNotificationSettings()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-2.5 rounded-xl text-xs shadow">Save Preferences</button>
+        </div>
+    </div>
+
+    <!-- APPLICATION JAVASCRIPT ARCHITECTURE -->
+    <script>
+        // --- STATE MANAGEMENT ---
+        let currentPin = "1234";
+        let enteredPinDigits = "";
+        let isUnlocked = false;
+        let isApproved = false;
+        let activeChatTarget = "group"; // "group" or member id
+        let activeDisappearingTimer = 0; 
+        let soundAlertsEnabled = true;
+        let toastAlertsEnabled = true;
+
+        let currentUser = {
+            id: "user_" + Math.random().toString(36).substring(2, 7),
+            name: "Alex",
+            avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Alex"
+        };
+
+        let groupRoomData = {
+            name: "#squad-vault",
+            avatar: "https://api.dicebear.com/7.x/identicon/svg?seed=squad-vault"
+        };
+
+        let roomMembers = [
+            { id: "user_host", name: "Vault Master (Admin)", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=VaultMaster", status: "online", role: "admin" },
+            { id: "user_2", name: "Sarah", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Sarah", status: "online", role: "member" },
+            { id: "user_3", name: "David", avatar: "https://api.dicebear.com/7.x/bottts/svg?seed=David", status: "online", role: "member" }
+        ];
+
+        let pendingJoinRequest = null;
+        let groupMessages = [
+            { id: "msg_1", senderId: "user_host", senderName: "Vault Master", senderAvatar: "https://api.dicebear.com/7.x/bottts/svg?seed=VaultMaster", type: "text", content: "Welcome to Nexus Stealth Vault! Fully responsive on Android & Laptops.", timestamp: "10:15 AM", expiresAt: null },
+            { id: "msg_2", senderId: "user_2", senderName: "Sarah", senderAvatar: "https://api.dicebear.com/7.x/bottts/svg?seed=Sarah", type: "text", content: "Awesome! We can also change app icons and group avatars now.", timestamp: "10:16 AM", expiresAt: null }
+        ];
+
+        let dmMessages = {}; 
+        let pendingImageDataUrl = null;
+        let pendingAppIconDataUrl = null;
+        let pendingGroupPicDataUrl = null;
+        let viewOnceTargetMsgId = null;
+        let isRecordingAudio = false;
+        let recordTimerInterval = null;
+        let recordSeconds = 0;
+        let isMicMuted = false;
+        let isAudioDeafened = false;
+
+        function getCurrentTime() {
+            const d = new Date();
+            let h = d.getHours();
+            let m = d.getMinutes();
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12;
+            h = h ? h : 12;
+            m = m < 10 ? '0' + m : m;
+            return h + ':' + m + ' ' + ampm;
+        }
+
+        // --- TOAST NOTIFICATION UTILITY ---
+        function showToast(message, type = 'info') {
+            if (!toastAlertsEnabled && type === 'info') return;
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            let borderColor = 'border-brand-500/40';
+            let icon = 'fa-circle-check text-brand-400';
+            if (type === 'error') {
+                borderColor = 'border-rose-500/40';
+                icon = 'fa-triangle-exclamation text-rose-400';
+            } else if (type === 'info') {
+                borderColor = 'border-sky-500/40';
+                icon = 'fa-circle-info text-sky-400';
+            }
+
+            toast.className = `glass-card border ${borderColor} p-3.5 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-y-2 opacity-0 transition-all duration-300 pointer-events-auto`;
+            toast.innerHTML = `
+                <i class="fa-solid ${icon} text-base"></i>
+                <div class="flex-1">
+                    <p class="text-xs font-bold text-white">${message}</p>
+                </div>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // --- PIN LOCK SYSTEM ---
+        function appendPin(digit) {
+            if (enteredPinDigits.length < 4) {
+                enteredPinDigits += digit;
+                updatePinDots();
+            }
+        }
+
+        function clearPin() {
+            enteredPinDigits = "";
+            updatePinDots();
+        }
+
+        function updatePinDots() {
+            const dots = document.querySelectorAll('.pin-dot');
+            dots.forEach((dot, idx) => {
+                if (idx < enteredPinDigits.length) {
+                    dot.classList.add('bg-brand-500', 'border-brand-500');
+                } else {
+                    dot.classList.remove('bg-brand-500', 'border-brand-500');
+                }
+            });
+        }
+
+        function verifyPin() {
+            if (enteredPinDigits === currentPin) {
+                isUnlocked = true;
+                document.getElementById('lockScreen').classList.add('hidden');
+                showToast("Vault Unlocked successfully", "success");
+                checkExistingSession();
+            } else {
+                showToast("Invalid Passcode. Try 1234", "error");
+                clearPin();
+            }
+        }
+
+        function lockApp() {
+            isUnlocked = false;
+            enteredPinDigits = "";
+            updatePinDots();
+            document.getElementById('lockScreen').classList.remove('hidden');
+            showToast("Vault Locked", "info");
+        }
+
+        // --- SESSION & ADMIN APPROVAL GATE ---
+        function checkExistingSession() {
+            const savedApproval = localStorage.getItem('nexus_approved');
+            const savedName = localStorage.getItem('nexus_username');
+            const savedAvatar = localStorage.getItem('nexus_avatar');
+
+            if (savedName) {
+                currentUser.name = savedName;
+                currentUser.avatar = savedAvatar || currentUser.avatar;
+            }
+
+            if (savedApproval === 'true') {
+                isApproved = true;
+                document.getElementById('profileModal').classList.add('hidden');
+                document.getElementById('waitingLobbyModal').classList.add('hidden');
+                initAppSession();
+            } else {
+                document.getElementById('usernameInput').value = currentUser.name;
+                document.getElementById('avatarSetupPreview').src = currentUser.avatar;
+                document.getElementById('profileModal').classList.remove('hidden');
+            }
+        }
+
+        function triggerAvatarUpload() {
+            document.getElementById('avatarFileInput').click();
+        }
+
+        function handleAvatarFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentUser.avatar = e.target.result;
+                    document.getElementById('avatarSetupPreview').src = currentUser.avatar;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function submitJoinRequest() {
+            const nameInput = document.getElementById('usernameInput').value.trim();
+            if (nameInput) {
+                currentUser.name = nameInput;
+            }
+            document.getElementById('profileModal').classList.add('hidden');
+            document.getElementById('waitingLobbyModal').classList.remove('hidden');
+
+            pendingJoinRequest = { ...currentUser };
+            setTimeout(() => {
+                triggerAdminJoinPrompt(pendingJoinRequest);
+            }, 1200);
+        }
+
+        function triggerAdminJoinPrompt(user) {
+            const promptCard = document.getElementById('adminJoinPromptCard');
+            document.getElementById('joinReqAvatar').src = user.avatar;
+            document.getElementById('joinReqName').textContent = `${user.name} wants access to the vault`;
+            promptCard.classList.remove('hidden');
+            showToast(`New join request from ${user.name}`, "info");
+        }
+
+        function approveJoinRequest() {
+            isApproved = true;
+            localStorage.setItem('nexus_approved', 'true');
+            localStorage.setItem('nexus_username', currentUser.name);
+            localStorage.setItem('nexus_avatar', currentUser.avatar);
+
+            document.getElementById('adminJoinPromptCard').classList.add('hidden');
+            document.getElementById('waitingLobbyModal').classList.add('hidden');
+
+            if (!roomMembers.some(m => m.id === currentUser.id)) {
+                roomMembers.push({ ...currentUser, status: 'online', role: 'member' });
+            }
+
+            initAppSession();
+            showToast("Join request approved! Welcome.", "success");
+        }
+
+        function denyJoinRequest() {
+            document.getElementById('adminJoinPromptCard').classList.add('hidden');
+            showToast("Join request denied by admin.", "error");
+            setTimeout(() => {
+                document.getElementById('waitingLobbyModal').classList.remove('hidden');
+            }, 1000);
+        }
+
+        function initAppSession() {
+            renderMemberList();
+            renderMessages();
+            populateTagMentionsMenu();
+            updateGroupHeaderDisplay();
+        }
+
+        // --- GROUP ROOM SETTINGS (Custom Group Pic & Room Name) ---
+        function openGroupSettings() {
+            document.getElementById('groupRoomNameInput').value = groupRoomData.name;
+            document.getElementById('groupPicPreview').src = groupRoomData.avatar;
+            document.getElementById('groupSettingsModal').classList.remove('hidden');
+        }
+
+        function closeGroupSettings() {
+            document.getElementById('groupSettingsModal').classList.add('hidden');
+        }
+
+        function triggerGroupPicUpload() {
+            document.getElementById('groupPicFileInput').click();
+        }
+
+        function handleGroupPicFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    pendingGroupPicDataUrl = evt.target.result;
+                    document.getElementById('groupPicPreview').src = pendingGroupPicDataUrl;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function saveGroupSettings() {
+            const name = document.getElementById('groupRoomNameInput').value.trim();
+            if (name) groupRoomData.name = name;
+            if (pendingGroupPicDataUrl) {
+                groupRoomData.avatar = pendingGroupPicDataUrl;
+                pendingGroupPicDataUrl = null;
+            }
+            updateGroupHeaderDisplay();
+            closeGroupSettings();
+            showToast("Group room settings updated", "success");
+        }
+
+        function updateGroupHeaderDisplay() {
+            document.getElementById('headerGroupAvatar').src = groupRoomData.avatar;
+            if (activeChatTarget === 'group') {
+                document.getElementById('activeChatTitle').textContent = `Group Vault: ${groupRoomData.name}`;
+            }
+        }
+
+        // --- PROFILE EDITING ---
+        function openEditProfile() {
+            document.getElementById('editUsernameInput').value = currentUser.name;
+            document.getElementById('editAvatarPreview').src = currentUser.avatar;
+            document.getElementById('editProfileModal').classList.remove('hidden');
+        }
+
+        function closeEditProfile() {
+            document.getElementById('editProfileModal').classList.add('hidden');
+        }
+
+        function triggerAvatarUploadEdit() {
+            document.getElementById('avatarFileInputEdit').click();
+        }
+
+        function handleAvatarEditFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    currentUser.avatar = evt.target.result;
+                    document.getElementById('editAvatarPreview').src = currentUser.avatar;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function saveProfileChanges() {
+            const name = document.getElementById('editUsernameInput').value.trim();
+            if (name) currentUser.name = name;
+            localStorage.setItem('nexus_username', currentUser.name);
+            localStorage.setItem('nexus_avatar', currentUser.avatar);
+            closeEditProfile();
+            renderMemberList();
+            renderMessages();
+            showToast("Profile credentials updated", "success");
+        }
+
+        // --- MEMBER LIST & PRIVATE DMS ---
+        function renderMemberList() {
+            const container = document.getElementById('memberListContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            roomMembers.forEach(m => {
+                const isSelected = activeChatTarget === m.id;
+                const row = document.createElement('button');
+                row.className = `w-full text-left p-2.5 rounded-2xl flex items-center justify-between transition ${isSelected ? 'bg-brand-500/20 border border-brand-500/40' : 'hover:bg-white/5 border border-transparent'}`;
+                row.onclick = () => switchChatTarget(m.id);
+                row.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <div class="relative">
+                            <img src="${m.avatar}" class="w-8 h-8 rounded-xl object-cover border border-white/10">
+                            <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-[#090d16]"></span>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-white block">${m.name}</span>
+                            <span class="text-[10px] text-gray-400">${m.role === 'admin' ? '🛡️ Admin' : 'Secure Peer'}</span>
+                        </div>
+                    </div>
+                    <span class="text-[10px] text-brand-400 font-semibold px-2 py-1 rounded-xl bg-white/5">DM</span>
+                `;
+                container.appendChild(row);
+            });
+            document.getElementById('activeUserCount').textContent = `${roomMembers.length} Members Online`;
+        }
+
+        function switchChatTarget(targetId) {
+            activeChatTarget = targetId;
+            if (targetId === 'group') {
+                updateGroupHeaderDisplay();
+            } else {
+                const targetMember = roomMembers.find(m => m.id === targetId);
+                document.getElementById('activeChatTitle').textContent = `Private DM: ${targetMember ? targetMember.name : 'Peer'}`;
+            }
+            renderMemberList();
+            renderMessages();
+        }
+
+        function getActiveMessageList() {
+            if (activeChatTarget === 'group') {
+                return groupMessages;
+            } else {
+                if (!dmMessages[activeChatTarget]) dmMessages[activeChatTarget] = [];
+                return dmMessages[activeChatTarget];
+            }
+        }
+
+        // --- MESSAGING & DISAPPEARING TIMER ---
+        function openDisappearingSettings() {
+            document.getElementById('disappearingModal').classList.remove('hidden');
+        }
+
+        function closeDisappearingSettings() {
+            document.getElementById('disappearingModal').classList.add('hidden');
+        }
+
+        function setDisappearingTimer(seconds) {
+            activeDisappearingTimer = seconds;
+            [0, 1, 43200, 86400].forEach(sec => {
+                const el = document.getElementById(`timerOpt_${sec}`);
+                if (el) {
+                    const check = el.querySelector('.check-icon');
+                    if (sec === seconds) {
+                        check.classList.remove('opacity-0');
+                    } else {
+                        check.classList.add('opacity-0');
+                    }
+                }
+            });
+
+            const badge = document.getElementById('disappearingBadge');
+            const badgeText = document.getElementById('disappearingBadgeText');
+            if (seconds > 0) {
+                badge.classList.remove('hidden');
+                badgeText.textContent = seconds === 1 ? 'Instant' : seconds === 43200 ? '12h' : '24h';
+            } else {
+                badge.classList.add('hidden');
+            }
+            closeDisappearingSettings();
+            showToast("Auto-delete timer updated", "success");
+        }
+
+        // --- PHOTO ATTACHMENTS & VIEW ONCE ---
+        function triggerFileInput() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleImageSelected(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    pendingImageDataUrl = e.target.result;
+                    document.getElementById('uploadPreviewImg').src = pendingImageDataUrl;
+                    document.getElementById('attachmentModal').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function cancelPhotoSend() {
+            pendingImageDataUrl = null;
+            document.getElementById('attachmentModal').classList.add('hidden');
+        }
+
+        function confirmPhotoSend() {
+            if (!pendingImageDataUrl) return;
+            const isViewOnce = document.getElementById('viewOnceToggle').checked;
+            const msgType = isViewOnce ? 'viewOnce' : 'image';
+
+            const newMsg = {
+                id: 'msg_' + Math.random().toString(36).substring(2, 9),
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                senderAvatar: currentUser.avatar,
+                type: msgType,
+                content: pendingImageDataUrl,
+                viewed: false,
+                timestamp: getCurrentTime()
+            };
+
+            if (activeChatTarget === 'group') {
+                groupMessages.push(newMsg);
+            } else {
+                if (!dmMessages[activeChatTarget]) dmMessages[activeChatTarget] = [];
+                dmMessages[activeChatTarget].push(newMsg);
+            }
+
+            cancelPhotoSend();
+            renderMessages();
+            showToast(isViewOnce ? "View-once time bomb photo sent" : "Photo sent", "success");
+        }
+
+        function openViewOncePhoto(msgId) {
+            viewOnceTargetMsgId = msgId;
+            let list = getActiveMessageList();
+            let msg = list.find(m => m.id === msgId);
+
+            if (msg && !msg.viewed) {
+                document.getElementById('viewOnceImgDisplay').src = msg.content;
+                document.getElementById('viewOnceModal').classList.remove('hidden');
+                msg.viewed = true; 
+            }
+        }
+
+        function closeViewOncePhoto() {
+            document.getElementById('viewOnceModal').classList.add('hidden');
+            renderMessages();
+            showToast("View-once photo destroyed", "info");
+        }
+
+        // --- VOICE RECORDINGS ---
+        function startVoiceRecording() {
+            document.getElementById('recordingBar').classList.remove('hidden');
+            isRecordingAudio = true;
+            recordSeconds = 0;
+            document.getElementById('recordTimer').textContent = "00:00";
+            recordTimerInterval = setInterval(() => {
+                recordSeconds++;
+                let m = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
+                let s = String(recordSeconds % 60).padStart(2, '0');
+                document.getElementById('recordTimer').textContent = `${m}:${s}`;
+            }, 1000);
+        }
+
+        function cancelVoiceRecording() {
+            clearInterval(recordTimerInterval);
+            isRecordingAudio = false;
+            document.getElementById('recordingBar').classList.add('hidden');
+        }
+
+        function stopAndSendVoiceRecording() {
+            clearInterval(recordTimerInterval);
+            isRecordingAudio = false;
+            document.getElementById('recordingBar').classList.add('hidden');
+
+            const newMsg = {
+                id: 'msg_' + Math.random().toString(36).substring(2, 9),
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                senderAvatar: currentUser.avatar,
+                type: 'voice',
+                content: 'voice_audio_stream',
+                timestamp: getCurrentTime()
+            };
+
+            if (activeChatTarget === 'group') {
+                groupMessages.push(newMsg);
+            } else {
+                if (!dmMessages[activeChatTarget]) dmMessages[activeChatTarget] = [];
+                dmMessages[activeChatTarget].push(newMsg);
+            }
+            renderMessages();
+            showToast("Voice note sent", "success");
+        }
+
+        // --- SEARCHABLE GIF ENGINE ---
+        function toggleGifPicker() {
+            const picker = document.getElementById('gifPicker');
+            picker.classList.toggle('hidden');
+            if (!picker.classList.contains('hidden')) {
+                searchGifTag('Trending');
+            }
+        }
+
+        function handleGifSearchInput(e) {
+            const query = e.target.value.trim();
+            const clearBtn = document.getElementById('clearGifSearchBtn');
+            if (query) {
+                clearBtn.classList.remove('hidden');
+                searchGifTag(query);
+            } else {
+                clearBtn.classList.add('hidden');
+                searchGifTag('Trending');
+            }
+        }
+
+        function clearGifSearch() {
+            document.getElementById('gifSearchInput').value = '';
+            document.getElementById('clearGifSearchBtn').classList.add('hidden');
+            searchGifTag('Trending');
+        }
+
+        function searchGifTag(tag) {
+            const grid = document.getElementById('gifGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            const gifDatabase = {
+                'Trending': [
+                    'https://media.giphy.com/media/l0HlRnAWXxn0MhOBK/giphy.gif',
+                    'https://media.giphy.com/media/3oTKSjRrfIPjeiVyM/giphy.gif',
+                    'https://media.giphy.com/media/26u4lOMA8JKSnL9Uk/giphy.gif',
+                    'https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif'
+                ],
+                'Clap': [
+                    'https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif',
+                    'https://media.giphy.com/media/ZdUnQS4AXEl1AERdil/giphy.gif',
+                    'https://media.giphy.com/media/fnK0jAsIDvQ117Kzdv/giphy.gif',
+                    'https://media.giphy.com/media/isxmSunZO6f4s/giphy.gif'
+                ],
+                'Dance': [
+                    'https://media.giphy.com/media/dVdIu1HNeeKCpzkgSU/giphy.gif',
+                    'https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif',
+                    'https://media.giphy.com/media/l0HlRnAWXxn0MhOBK/giphy.gif',
+                    'https://media.giphy.com/media/26u4lOMA8JKSnL9Uk/giphy.gif'
+                ],
+                'Laugh': [
+                    'https://media.giphy.com/media/10JhviFuU2gWD6/giphy.gif',
+                    'https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif',
+                    'https://media.giphy.com/media/3oTKSjRrfIPjeiVyM/giphy.gif',
+                    'https://media.giphy.com/media/l41lLuV3nRmJ0Oqy4/giphy.gif'
+                ]
+            };
+
+            let results = gifDatabase[tag] || gifDatabase['Trending'];
+            results.forEach(url => {
+                const img = document.createElement('img');
+                img.src = url;
+                img.className = 'w-full h-24 rounded-xl object-cover cursor-pointer hover:scale-105 transition border border-white/10';
+                img.onclick = () => sendGifMessage(url);
+                grid.appendChild(img);
+            });
+        }
+
+        function sendGifMessage(gifUrl) {
+            const newMsg = {
+                id: 'msg_' + Math.random().toString(36).substring(2, 9),
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                senderAvatar: currentUser.avatar,
+                type: 'gif',
+                content: gifUrl,
+                timestamp: getCurrentTime()
+            };
+
+            if (activeChatTarget === 'group') {
+                groupMessages.push(newMsg);
+            } else {
+                if (!dmMessages[activeChatTarget]) dmMessages[activeChatTarget] = [];
+                dmMessages[activeChatTarget].push(newMsg);
+            }
+            toggleGifPicker();
+            renderMessages();
+            showToast("GIF sent", "success");
+        }
+
+        // --- EMOJIS & TEXT MESSAGE SENDING ---
+        function toggleEmojiPicker() {
+            document.getElementById('emojiPicker').classList.toggle('hidden');
+        }
+
+        function addEmoji(emoji) {
+            const input = document.getElementById('chatInput');
+            input.value += emoji;
+            input.focus();
+            document.getElementById('emojiPicker').classList.add('hidden');
+        }
+
+        function handleSendMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const newMsg = {
+                id: 'msg_' + Math.random().toString(36).substring(2, 9),
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                senderAvatar: currentUser.avatar,
+                type: 'text',
+                content: text,
+                timestamp: getCurrentTime()
+            };
+
+            if (activeChatTarget === 'group') {
+                groupMessages.push(newMsg);
+            } else {
+                if (!dmMessages[activeChatTarget]) dmMessages[activeChatTarget] = [];
+                dmMessages[activeChatTarget].push(newMsg);
+            }
+
+            input.value = '';
+            renderMessages();
+        }
+
+        // --- SILENT UNSEND ---
+        function deleteMessage(msgId) {
+            if (activeChatTarget === 'group') {
+                groupMessages = groupMessages.filter(m => m.id !== msgId);
+            } else {
+                if (dmMessages[activeChatTarget]) {
+                    dmMessages[activeChatTarget] = dmMessages[activeChatTarget].filter(m => m.id !== msgId);
+                }
+            }
+            renderMessages();
+            showToast("Message removed", "info");
+        }
+
+        // --- VOICE & PRIVATE CALLS ---
+        function startVoiceCall() {
+            document.getElementById('voiceCallBar').classList.remove('hidden');
+            if (activeChatTarget === 'group') {
+                document.getElementById('callTypeTitle').textContent = "Encrypted Group Call";
+            } else {
+                const member = roomMembers.find(m => m.id === activeChatTarget);
+                document.getElementById('callTypeTitle').textContent = `Encrypted 1-on-1 Call: ${member ? member.name : 'Peer'}`;
+            }
+            showToast("Connected to secure voice channel", "success");
+        }
+
+        function endVoiceCall() {
+            document.getElementById('voiceCallBar').classList.add('hidden');
+            showToast("Voice call disconnected", "info");
+        }
+
+        function toggleMuteMic() {
+            isMicMuted = !isMicMuted;
+            const btn = document.getElementById('micBtn');
+            const icon = document.getElementById('micIcon');
+            const label = document.getElementById('micLabel');
+            if (isMicMuted) {
+                btn.className = 'p-2.5 rounded-xl bg-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition';
+                icon.className = 'fa-solid fa-microphone-slash';
+                label.textContent = 'Muted';
+                showToast("Microphone muted", "info");
+            } else {
+                btn.className = 'p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-semibold flex items-center gap-1.5 transition';
+                icon.className = 'fa-solid fa-microphone';
+                label.textContent = 'Mic On';
+                showToast("Microphone unmuted", "success");
+            }
+        }
+
+        function toggleDeafenAudio() {
+            isAudioDeafened = !isAudioDeafened;
+            const btn = document.getElementById('deafenBtn');
+            const icon = document.getElementById('deafenIcon');
+            const label = document.getElementById('deafenLabel');
+            if (isAudioDeafened) {
+                btn.className = 'p-2.5 rounded-xl bg-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition';
+                icon.className = 'fa-solid fa-volume-xmark';
+                label.textContent = 'Deafened';
+                showToast("Audio deafened", "info");
+            } else {
+                btn.className = 'p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-semibold flex items-center gap-1.5 transition';
+                icon.className = 'fa-solid fa-headphones';
+                label.textContent = 'Deafen Off';
+                showToast("Audio enabled", "success");
+            }
+        }
+
+        // --- UTILS & SECURITY SETTINGS ---
+        function openSettings() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function updateRoomPin() {
+            const currentInput = document.getElementById('currentPinInput').value;
+            const newInput = document.getElementById('newPinInput').value;
+
+            if (currentInput !== currentPin) {
+                showToast("Incorrect current passcode", "error");
+                return;
+            }
+            if (newInput.length !== 4 || isNaN(newInput)) {
+                showToast("Passcode must be 4 digits", "error");
+                return;
+            }
+
+            currentPin = newInput;
+            document.getElementById('pinHint').textContent = `Passcode updated successfully`;
+            closeSettings();
+            showToast("Vault Passcode updated", "success");
+        }
+
+        function copyRoomLink() {
+            const inviteUrl = window.location.href.split('#')[0] + '#squad-vault';
+            navigator.clipboard.writeText(inviteUrl);
+            showToast("Room invite link copied", "success");
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('memberSidebar');
+            sidebar.classList.toggle('hidden');
+        }
+
+        // --- APP ICON & NAME STEALTH DISGUISE ---
+        function openStealthDisguiseModal() {
+            document.getElementById('disguiseModal').classList.remove('hidden');
+        }
+
+        function closeStealthDisguiseModal() {
+            document.getElementById('disguiseModal').classList.add('hidden');
+        }
+
+        function triggerAppIconUpload() {
+            document.getElementById('appIconFileInput').click();
+        }
+
+        function handleAppIconFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    pendingAppIconDataUrl = evt.target.result;
+                    document.getElementById('customAppIconPreview').src = pendingAppIconDataUrl;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function setDisguisePreset(name, iconUrl) {
+            document.getElementById('customAppNameInput').value = name;
+            pendingAppIconDataUrl = iconUrl;
+            document.getElementById('customAppIconPreview').src = iconUrl;
+        }
+
+        function applyAppDisguise() {
+            const appName = document.getElementById('customAppNameInput').value.trim();
+            // Set document title (can be blank if user chose not to name it)
+            document.title = appName;
+            
+            if (pendingAppIconDataUrl) {
+                let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+                link.type = 'image/x-icon';
+                link.rel = 'shortcut icon';
+                link.href = pendingAppIconDataUrl;
+                document.getElementsByTagName('head')[0].appendChild(link);
+            }
+
+            closeStealthDisguiseModal();
+            showToast(appName ? `Disguised app as "${appName}"` : "App name & icon cleared for stealth", "success");
+        }
+
+        function resetDisguise() {
+            document.title = 'Nexus Private Stealth Chat';
+            pendingAppIconDataUrl = null;
+            document.getElementById('customAppNameInput').value = 'Nexus Private Stealth Chat';
+            document.getElementById('customAppIconPreview').src = 'https://placehold.co/80x80/10b981/ffffff?text=App';
+            closeStealthDisguiseModal();
+            showToast("Disguise reset to default", "info");
+        }
+
+        // --- RENDER MESSAGES ---
+        function renderMessages() {
+            const stream = document.getElementById('messageStream');
+            if (!stream) return;
+            stream.innerHTML = '';
+
+            const list = getActiveMessageList();
+            list.forEach(msg => {
+                const isMe = msg.senderId === currentUser.id;
+                const row = document.createElement('div');
+                row.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end group`;
+
+                let contentHtml = '';
+                if (msg.type === 'text') {
+                    contentHtml = `<p class="text-xs sm:text-sm text-gray-100 leading-relaxed break-words">${escapeHtml(msg.content)}</p>`;
+                } else if (msg.type === 'image') {
+                    contentHtml = `<img src="${msg.content}" class="max-w-[220px] max-h-56 rounded-2xl object-cover border border-white/10 shadow-md">`;
+                } else if (msg.type === 'gif') {
+                    contentHtml = `<img src="${msg.content}" class="max-w-[220px] max-h-48 rounded-2xl object-cover border border-white/10 shadow-md">`;
+                } else if (msg.type === 'voice') {
+                    contentHtml = `
+                        <div class="flex items-center gap-2 py-1">
+                            <button onclick="playVoiceNote('${msg.id}')" class="w-8 h-8 rounded-full bg-brand-500 text-white flex items-center justify-center text-xs shadow"><i class="fa-solid fa-play"></i></button>
+                            <div class="flex items-center gap-1">
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                                <div class="wave-bar"></div>
+                            </div>
+                            <span class="text-[10px] text-gray-300 font-mono">Voice Note</span>
+                        </div>
+                    `;
+                } else if (msg.type === 'viewOnce') {
+                    if (msg.viewed) {
+                        contentHtml = `<div class="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs text-gray-400 italic flex items-center gap-2"><i class="fa-solid fa-bomb text-rose-400"></i><span>View-Once Photo (Self-destructed)</span></div>`;
+                    } else {
+                        contentHtml = `
+                            <button onclick="openViewOncePhoto('${msg.id}')" class="p-3.5 rounded-2xl bg-gradient-to-r from-rose-500/20 to-accent-500/20 border border-rose-500/40 hover:border-rose-500 transition flex items-center gap-3 text-left">
+                                <div class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-base animate-bomb-tick">
+                                    <i class="fa-solid fa-bomb"></i>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-bold text-white block">View-Once Photo</span>
+                                    <span class="text-[10px] text-rose-400 font-mono">Tap to open (Burns on close)</span>
+                                </div>
+                            </button>
+                        `;
+                    }
+                }
+
+                row.innerHTML = `
+                    <img src="${msg.senderAvatar}" class="w-8 h-8 rounded-xl object-cover border border-white/10">
+                    <div class="max-w-[75%] sm:max-w-[65%] flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+                        <div class="flex items-center gap-2 mb-1 px-1">
+                            <span class="text-[11px] font-bold text-gray-300">${msg.senderName}</span>
+                            <span class="text-[9px] text-gray-500 font-mono">${msg.timestamp}</span>
+                            <button onclick="deleteMessage('${msg.id}')" class="opacity-0 group-hover:opacity-100 text-[10px] text-rose-400 hover:text-rose-300 transition" title="Unsend Message"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                        <div class="p-3.5 rounded-2xl ${isMe ? 'bg-brand-600/30 border border-brand-500/40 text-white rounded-br-none' : 'glass-card text-gray-100 rounded-bl-none'} shadow-lg">
+                            ${contentHtml}
+                        </div>
+                    </div>
+                `;
+                stream.appendChild(row);
+            });
+            stream.scrollTop = stream.scrollHeight;
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function playVoiceNote(msgId) {
+            showToast("Playing secure voice recording...", "info");
+        }
+
+        function openNotificationSettings() {
+            document.getElementById('notificationModal').classList.remove('hidden');
+        }
+
+        function closeNotificationSettings() {
+            document.getElementById('notificationModal').classList.add('hidden');
+        }
+
+        function saveNotificationSettings() {
+            soundAlertsEnabled = document.getElementById('toggleSoundNotifications').checked;
+            toastAlertsEnabled = document.getElementById('toggleToastNotifications').checked;
+            closeNotificationSettings();
+            showToast("Notification preferences saved", "success");
+        }
+
+        function simulateIntruderThreat() {
+            showToast("⚠️ SECURITY ALERT: Intruder threat detected! Vault wiped.", "error");
+            groupMessages = [];
+            dmMessages = {};
+            renderMessages();
+            lockApp();
+        }
+
+        function populateTagMentionsMenu() {
+            const list = document.getElementById('tagMemberList');
+            if (!list) return;
+            list.innerHTML = '';
+            roomMembers.forEach(m => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'w-full text-left p-2 hover:bg-white/10 rounded-xl text-xs font-semibold text-gray-200 flex items-center gap-2';
+                btn.innerHTML = `<img src="${m.avatar}" class="w-5 h-5 rounded-lg object-cover"> @${m.name}`;
+                btn.onclick = () => insertTag(`@${m.name}`);
+                list.appendChild(btn);
+            });
+        }
+
+        function toggleTagMenu() {
+            document.getElementById('tagMentionsMenu').classList.toggle('hidden');
+        }
+
+        function insertTag(tagText) {
+            const input = document.getElementById('chatInput');
+            if (input) {
+                input.value += (input.value ? ' ' : '') + tagText + ' ';
+                input.focus();
+            }
+            document.getElementById('tagMentionsMenu').classList.add('hidden');
+        }
+
+        // --- WINDOW LOAD INITIALIZER ---
+        window.onload = function() {
+            updatePinDots();
+        };
+    </script>
+</body>
+</html>
